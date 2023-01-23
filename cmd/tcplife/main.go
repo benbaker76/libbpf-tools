@@ -30,6 +30,7 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -74,7 +75,7 @@ func main() {
 	}
 	defer objs.Close()
 
-	tp, err := link.Tracepoint("sock", "inet_sock_set_state", objs.TCPLifePrograms.TraceInetSockSetState)
+	tp, err := link.Tracepoint("sock", "inet_sock_set_state", objs.TCPLifePrograms.InetSockSetState, nil)
 	if err != nil {
 		log.Printf("failed to attach the BPF program to inet_sock_set_state tracepoint: %v", err)
 		return
@@ -102,7 +103,7 @@ func main() {
 	for {
 		record, err := rd.Read()
 		if err != nil {
-			if perf.IsClosed(err) {
+			if errors.Is(err, os.ErrClosed) {
 				break
 			}
 			log.Printf("failed to read from perf ring buffer: %v", err)
@@ -142,26 +143,26 @@ type event struct {
 	SrcAddr [16]byte
 	// DstAddr is the remote address.
 	DstAddr [16]byte
-	// Comm is the process name responsible for the connection.
-	Comm [16]byte
+	// Timestamp is the timestamp in microseconds.
+	Timestamp uint64
+	// Delta is the session duration in microseconds.
+	Delta uint64
 	// BytesReceived is the number of bytes transmitted during the connection.
 	BytesReceived uint64
 	// BytesAcked is the number of bytes received during the connection.
 	BytesAcked uint64
-	// Delta is the session duration in microseconds.
-	Delta uint64
-	// Timestamp is the timestamp in microseconds.
-	Timestamp uint64
 	// PID is the process ID responsible for the connection.
 	PID uint32
-	// AddrFam is the address family, 2 is AF_INET (IPv4), 10 is AF_INET6 (IPv6).
-	AddrFam uint32
 	// SrcPort is the local port (uint16 in C struct).
 	// Note, network byte order is big-endian.
 	SrcPort [2]byte
 	// DstPort is the remote port (uint16 in C struct).
 	// Note, network byte order is big-endian.
 	DstPort [2]byte
+	// AddrFam is the address family, 2 is AF_INET (IPv4), 10 is AF_INET6 (IPv6).
+	AddrFam uint16
+	// Comm is the process name responsible for the connection.
+	Comm [16]byte
 }
 
 func printHeader(w io.Writer, printTimestamp bool) {

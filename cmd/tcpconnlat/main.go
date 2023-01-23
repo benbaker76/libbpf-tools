@@ -28,6 +28,7 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -75,8 +76,8 @@ func main() {
 	// AttachTrace links a tracing fentry BPF program to a BPF hook defined in kernel modules.
 	// Fentry is similar to kprobe, but has improved performance and usability,
 	// see https://github.com/libbpf/libbpf-bootstrap/blob/master/README.md#fentry.
-	tcpv4fe, err := link.AttachTrace(link.TraceOptions{
-		objs.TCPConnLatPrograms.TcpV4Connect,
+	tcpv4fe, err := link.AttachTracing(link.TracingOptions{
+		Program: objs.TCPConnLatPrograms.FentryTcpV4Connect,
 	})
 	if err != nil {
 		log.Printf("failed to attach the BPF program to tcp_v4_connect fentry: %s", err)
@@ -84,15 +85,15 @@ func main() {
 	}
 	defer tcpv4fe.Close()
 
-	tcpv6kp, err := link.Kprobe("tcp_v6_connect", objs.TCPConnLatPrograms.TcpV6Connect)
+	tcpv6kp, err := link.Kprobe("tcp_v6_connect", objs.TCPConnLatPrograms.TcpV6Connect, nil)
 	if err != nil {
 		log.Printf("failed to attach the BPF program to tcp_v6_connect kprobe: %s", err)
 		return
 	}
 	defer tcpv6kp.Close()
 
-	tcprcvfe, err := link.AttachTrace(link.TraceOptions{
-		objs.TCPConnLatPrograms.TcpRcvStateProcess,
+	tcprcvfe, err := link.AttachTracing(link.TracingOptions{
+		Program: objs.TCPConnLatPrograms.FentryTcpRcvStateProcess,
 	})
 	if err != nil {
 		log.Printf("failed to attach the BPF program to tcp_rcv_state_process fentry: %s", err)
@@ -121,7 +122,7 @@ func main() {
 	for {
 		record, err := rd.Read()
 		if err != nil {
-			if perf.IsClosed(err) {
+			if errors.Is(err, os.ErrClosed) {
 				break
 			}
 			log.Printf("failed to read from perf ring buffer: %v", err)

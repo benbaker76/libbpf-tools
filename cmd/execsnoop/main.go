@@ -31,6 +31,7 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"flag"
 	"log"
 	"os"
@@ -79,14 +80,14 @@ func main() {
 	}
 	defer objs.Close()
 
-	tpEnter, err := link.Tracepoint("syscalls", "sys_enter_execve", objs.ExecSnoopPrograms.TracepointSyscallsSysEnterExecve)
+	tpEnter, err := link.Tracepoint("syscalls", "sys_enter_execve", objs.ExecSnoopPrograms.TracepointSyscallsSysEnterExecve, nil)
 	if err != nil {
 		log.Printf("failed to attach the BPF program to sys_enter_execve tracepoint: %v", err)
 		return
 	}
 	defer tpEnter.Close()
 
-	tpExit, err := link.Tracepoint("syscalls", "sys_exit_execve", objs.ExecSnoopPrograms.TracepointSyscallsSysExitExecve)
+	tpExit, err := link.Tracepoint("syscalls", "sys_exit_execve", objs.ExecSnoopPrograms.TracepointSyscallsSysExitExecve, nil)
 	if err != nil {
 		log.Printf("failed to attach the BPF program to sys_exit_execve tracepoint: %v", err)
 		return
@@ -114,7 +115,7 @@ func main() {
 	for {
 		record, err := rd.Read()
 		if err != nil {
-			if perf.IsClosed(err) {
+			if errors.Is(err, os.ErrClosed) {
 				break
 			}
 			log.Printf("failed to read from perf ring buffer: %v", err)

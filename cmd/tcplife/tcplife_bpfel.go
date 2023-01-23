@@ -13,6 +13,11 @@ import (
 	"github.com/cilium/ebpf"
 )
 
+type TCPLifeIdent struct {
+	Pid  uint32
+	Comm [16]int8
+}
+
 // LoadTCPLife returns the embedded CollectionSpec for TCPLife.
 func LoadTCPLife() (*ebpf.CollectionSpec, error) {
 	reader := bytes.NewReader(_TCPLifeBytes)
@@ -28,9 +33,9 @@ func LoadTCPLife() (*ebpf.CollectionSpec, error) {
 //
 // The following types are suitable as obj argument:
 //
-//     *TCPLifeObjects
-//     *TCPLifePrograms
-//     *TCPLifeMaps
+//	*TCPLifeObjects
+//	*TCPLifePrograms
+//	*TCPLifeMaps
 //
 // See ebpf.CollectionSpec.LoadAndAssign documentation for details.
 func LoadTCPLifeObjects(obj interface{}, opts *ebpf.CollectionOptions) error {
@@ -54,7 +59,7 @@ type TCPLifeSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type TCPLifeProgramSpecs struct {
-	TraceInetSockSetState *ebpf.ProgramSpec `ebpf:"trace_inet_sock_set_state"`
+	InetSockSetState *ebpf.ProgramSpec `ebpf:"inet_sock_set_state"`
 }
 
 // TCPLifeMapSpecs contains maps before they are loaded into the kernel.
@@ -63,7 +68,7 @@ type TCPLifeProgramSpecs struct {
 type TCPLifeMapSpecs struct {
 	Birth  *ebpf.MapSpec `ebpf:"birth"`
 	Events *ebpf.MapSpec `ebpf:"events"`
-	Whoami *ebpf.MapSpec `ebpf:"whoami"`
+	Idents *ebpf.MapSpec `ebpf:"idents"`
 }
 
 // TCPLifeObjects contains all objects after they have been loaded into the kernel.
@@ -87,14 +92,14 @@ func (o *TCPLifeObjects) Close() error {
 type TCPLifeMaps struct {
 	Birth  *ebpf.Map `ebpf:"birth"`
 	Events *ebpf.Map `ebpf:"events"`
-	Whoami *ebpf.Map `ebpf:"whoami"`
+	Idents *ebpf.Map `ebpf:"idents"`
 }
 
 func (m *TCPLifeMaps) Close() error {
 	return _TCPLifeClose(
 		m.Birth,
 		m.Events,
-		m.Whoami,
+		m.Idents,
 	)
 }
 
@@ -102,12 +107,12 @@ func (m *TCPLifeMaps) Close() error {
 //
 // It can be passed to LoadTCPLifeObjects or ebpf.CollectionSpec.LoadAndAssign.
 type TCPLifePrograms struct {
-	TraceInetSockSetState *ebpf.Program `ebpf:"trace_inet_sock_set_state"`
+	InetSockSetState *ebpf.Program `ebpf:"inet_sock_set_state"`
 }
 
 func (p *TCPLifePrograms) Close() error {
 	return _TCPLifeClose(
-		p.TraceInetSockSetState,
+		p.InetSockSetState,
 	)
 }
 
@@ -121,5 +126,6 @@ func _TCPLifeClose(closers ...io.Closer) error {
 }
 
 // Do not access this directly.
+//
 //go:embed tcplife_bpfel.o
 var _TCPLifeBytes []byte

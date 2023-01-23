@@ -13,6 +13,17 @@ import (
 	"github.com/cilium/ebpf"
 )
 
+type ExecSnoopEvent struct {
+	Pid       int32
+	Ppid      int32
+	Uid       uint32
+	Retval    int32
+	ArgsCount int32
+	ArgsSize  uint32
+	Comm      [16]int8
+	Args      [7680]int8
+}
+
 // LoadExecSnoop returns the embedded CollectionSpec for ExecSnoop.
 func LoadExecSnoop() (*ebpf.CollectionSpec, error) {
 	reader := bytes.NewReader(_ExecSnoopBytes)
@@ -28,9 +39,9 @@ func LoadExecSnoop() (*ebpf.CollectionSpec, error) {
 //
 // The following types are suitable as obj argument:
 //
-//     *ExecSnoopObjects
-//     *ExecSnoopPrograms
-//     *ExecSnoopMaps
+//	*ExecSnoopObjects
+//	*ExecSnoopPrograms
+//	*ExecSnoopMaps
 //
 // See ebpf.CollectionSpec.LoadAndAssign documentation for details.
 func LoadExecSnoopObjects(obj interface{}, opts *ebpf.CollectionOptions) error {
@@ -62,8 +73,9 @@ type ExecSnoopProgramSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type ExecSnoopMapSpecs struct {
-	Events *ebpf.MapSpec `ebpf:"events"`
-	Execs  *ebpf.MapSpec `ebpf:"execs"`
+	CgroupMap *ebpf.MapSpec `ebpf:"cgroup_map"`
+	Events    *ebpf.MapSpec `ebpf:"events"`
+	Execs     *ebpf.MapSpec `ebpf:"execs"`
 }
 
 // ExecSnoopObjects contains all objects after they have been loaded into the kernel.
@@ -85,12 +97,14 @@ func (o *ExecSnoopObjects) Close() error {
 //
 // It can be passed to LoadExecSnoopObjects or ebpf.CollectionSpec.LoadAndAssign.
 type ExecSnoopMaps struct {
-	Events *ebpf.Map `ebpf:"events"`
-	Execs  *ebpf.Map `ebpf:"execs"`
+	CgroupMap *ebpf.Map `ebpf:"cgroup_map"`
+	Events    *ebpf.Map `ebpf:"events"`
+	Execs     *ebpf.Map `ebpf:"execs"`
 }
 
 func (m *ExecSnoopMaps) Close() error {
 	return _ExecSnoopClose(
+		m.CgroupMap,
 		m.Events,
 		m.Execs,
 	)
@@ -121,5 +135,6 @@ func _ExecSnoopClose(closers ...io.Closer) error {
 }
 
 // Do not access this directly.
+//
 //go:embed execsnoop_bpfel.o
 var _ExecSnoopBytes []byte

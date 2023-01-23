@@ -22,6 +22,7 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -91,28 +92,28 @@ func main() {
 	}
 	defer objs.Close()
 
-	tcpv4kp, err := link.Kprobe("tcp_v4_connect", objs.TCPConnectPrograms.TcpV4Connect)
+	tcpv4kp, err := link.Kprobe("tcp_v4_connect", objs.TCPConnectPrograms.TcpV4Connect, nil)
 	if err != nil {
 		log.Printf("failed to attach the BPF program to tcp_v4_connect kprobe: %s", err)
 		return
 	}
 	defer tcpv4kp.Close()
 
-	tcpv4krp, err := link.Kretprobe("tcp_v4_connect", objs.TCPConnectPrograms.TcpV4ConnectRet)
+	tcpv4krp, err := link.Kretprobe("tcp_v4_connect", objs.TCPConnectPrograms.TcpV4ConnectRet, nil)
 	if err != nil {
 		log.Printf("failed to attach the BPF program to tcp_v4_connect kretprobe: %s", err)
 		return
 	}
 	defer tcpv4krp.Close()
 
-	tcpv6kp, err := link.Kprobe("tcp_v6_connect", objs.TCPConnectPrograms.TcpV6Connect)
+	tcpv6kp, err := link.Kprobe("tcp_v6_connect", objs.TCPConnectPrograms.TcpV6Connect, nil)
 	if err != nil {
 		log.Printf("failed to attach the BPF program to tcp_v6_connect kprobe: %s", err)
 		return
 	}
 	defer tcpv6kp.Close()
 
-	tcpv6krp, err := link.Kretprobe("tcp_v6_connect", objs.TCPConnectPrograms.TcpV6ConnectRet)
+	tcpv6krp, err := link.Kretprobe("tcp_v6_connect", objs.TCPConnectPrograms.TcpV6ConnectRet, nil)
 	if err != nil {
 		log.Printf("failed to attach the BPF program to tcp_v6_connect kretprobe: %s", err)
 		return
@@ -140,7 +141,7 @@ func main() {
 	for {
 		record, err := rd.Read()
 		if err != nil {
-			if perf.IsClosed(err) {
+			if errors.Is(err, os.ErrClosed) {
 				break
 			}
 			log.Printf("failed to read from perf ring buffer: %v", err)

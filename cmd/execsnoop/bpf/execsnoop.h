@@ -1,7 +1,4 @@
-/*
-SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
-https://github.com/iovisor/bcc/blob/master/libbpf-tools/execsnoop.h
-*/
+/* SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause) */
 #ifndef __EXECSNOOP_H
 #define __EXECSNOOP_H
 
@@ -19,9 +16,9 @@ struct event {
 	pid_t pid;
 	pid_t ppid;
 	uid_t uid;
-	int32 retval;
-	int32 args_count;
-	u32 args_size;
+	int retval;
+	int args_count;
+	unsigned int args_size;
 	char comm[TASK_COMM_LEN];
 	char args[FULL_MAX_ARGS_ARR];
 };

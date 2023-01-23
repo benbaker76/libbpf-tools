@@ -1,7 +1,4 @@
-/*
-SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
-https://github.com/iovisor/bcc/blob/master/libbpf-tools/tcpconnlat.h
-*/
+/* SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause) */
 #ifndef __TCPCONNLAT_H
 #define __TCPCONNLAT_H
 
@@ -20,7 +17,8 @@ struct event {
 	__u64 delta_us;
 	__u64 ts_us;
 	__u32 tgid;
-	__u32 af;
+	int af;
+	__u16 lport;
 	__u16 dport;
 };
 

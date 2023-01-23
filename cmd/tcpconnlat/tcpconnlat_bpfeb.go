@@ -13,6 +13,13 @@ import (
 	"github.com/cilium/ebpf"
 )
 
+type TCPConnLatPiddata struct {
+	Comm [16]int8
+	Ts   uint64
+	Tgid uint32
+	_    [4]byte
+}
+
 // LoadTCPConnLat returns the embedded CollectionSpec for TCPConnLat.
 func LoadTCPConnLat() (*ebpf.CollectionSpec, error) {
 	reader := bytes.NewReader(_TCPConnLatBytes)
@@ -28,9 +35,9 @@ func LoadTCPConnLat() (*ebpf.CollectionSpec, error) {
 //
 // The following types are suitable as obj argument:
 //
-//     *TCPConnLatObjects
-//     *TCPConnLatPrograms
-//     *TCPConnLatMaps
+//	*TCPConnLatObjects
+//	*TCPConnLatPrograms
+//	*TCPConnLatMaps
 //
 // See ebpf.CollectionSpec.LoadAndAssign documentation for details.
 func LoadTCPConnLatObjects(obj interface{}, opts *ebpf.CollectionOptions) error {
@@ -54,9 +61,12 @@ type TCPConnLatSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type TCPConnLatProgramSpecs struct {
-	TcpRcvStateProcess *ebpf.ProgramSpec `ebpf:"tcp_rcv_state_process"`
-	TcpV4Connect       *ebpf.ProgramSpec `ebpf:"tcp_v4_connect"`
-	TcpV6Connect       *ebpf.ProgramSpec `ebpf:"tcp_v6_connect"`
+	FentryTcpRcvStateProcess *ebpf.ProgramSpec `ebpf:"fentry_tcp_rcv_state_process"`
+	FentryTcpV4Connect       *ebpf.ProgramSpec `ebpf:"fentry_tcp_v4_connect"`
+	FentryTcpV6Connect       *ebpf.ProgramSpec `ebpf:"fentry_tcp_v6_connect"`
+	TcpRcvStateProcess       *ebpf.ProgramSpec `ebpf:"tcp_rcv_state_process"`
+	TcpV4Connect             *ebpf.ProgramSpec `ebpf:"tcp_v4_connect"`
+	TcpV6Connect             *ebpf.ProgramSpec `ebpf:"tcp_v6_connect"`
 }
 
 // TCPConnLatMapSpecs contains maps before they are loaded into the kernel.
@@ -101,13 +111,19 @@ func (m *TCPConnLatMaps) Close() error {
 //
 // It can be passed to LoadTCPConnLatObjects or ebpf.CollectionSpec.LoadAndAssign.
 type TCPConnLatPrograms struct {
-	TcpRcvStateProcess *ebpf.Program `ebpf:"tcp_rcv_state_process"`
-	TcpV4Connect       *ebpf.Program `ebpf:"tcp_v4_connect"`
-	TcpV6Connect       *ebpf.Program `ebpf:"tcp_v6_connect"`
+	FentryTcpRcvStateProcess *ebpf.Program `ebpf:"fentry_tcp_rcv_state_process"`
+	FentryTcpV4Connect       *ebpf.Program `ebpf:"fentry_tcp_v4_connect"`
+	FentryTcpV6Connect       *ebpf.Program `ebpf:"fentry_tcp_v6_connect"`
+	TcpRcvStateProcess       *ebpf.Program `ebpf:"tcp_rcv_state_process"`
+	TcpV4Connect             *ebpf.Program `ebpf:"tcp_v4_connect"`
+	TcpV6Connect             *ebpf.Program `ebpf:"tcp_v6_connect"`
 }
 
 func (p *TCPConnLatPrograms) Close() error {
 	return _TCPConnLatClose(
+		p.FentryTcpRcvStateProcess,
+		p.FentryTcpV4Connect,
+		p.FentryTcpV6Connect,
 		p.TcpRcvStateProcess,
 		p.TcpV4Connect,
 		p.TcpV6Connect,
@@ -124,5 +140,6 @@ func _TCPConnLatClose(closers ...io.Closer) error {
 }
 
 // Do not access this directly.
+//
 //go:embed tcpconnlat_bpfeb.o
 var _TCPConnLatBytes []byte

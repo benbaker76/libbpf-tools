@@ -1,29 +1,28 @@
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright (c) 2022 Hengqi Chen */
 #ifndef __TCPLIFE_H
 #define __TCPLIFE_H
 
-/* The maximum number of items in maps */
-#define MAX_ENTRIES 8192
+#define MAX_PORTS	1024
+#define TASK_COMM_LEN	16
 
-#define TASK_COMM_LEN 16
-
-struct event {
-	union {
-		__u32 saddr_v4;
-		__u8 saddr_v6[16];
-	};
-	union {
-		__u32 daddr_v4;
-		__u8 daddr_v6[16];
-	};
-	char task[TASK_COMM_LEN];
-	__u64 rx_b;
-	__u64 tx_b;
-	__u64 span_us;
-	__u64 ts_us;
+struct ident {
 	__u32 pid;
-	__u32 af;
-	__u16 lport;
-	__u16 dport;
+	char comm[TASK_COMM_LEN];
 };
 
-#endif /* __TCPLIFE_H_ */
+struct event {
+	unsigned __int128 saddr;
+	unsigned __int128 daddr;
+	__u64 ts_us;
+	__u64 span_us;
+	__u64 rx_b;
+	__u64 tx_b;
+	__u32 pid;
+	__u16 sport;
+	__u16 dport;
+	__u16 family;
+	char comm[TASK_COMM_LEN];
+};
+
+#endif /* __TCPLIFE_H */
