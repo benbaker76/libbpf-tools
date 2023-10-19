@@ -44,7 +44,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cflags $BPF_CFLAGS -cc clang-15 ExecSnoop ./bpf/execsnoop.bpf.c -- -I../../headers
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cflags $BPF_CFLAGS -cc clang-15 bpf execsnoop.c -- -I../../headers
 
 func main() {
 	// By default an exit code is set to indicate a failure since
@@ -70,24 +70,24 @@ func main() {
 	}
 
 	// Load the BPF program into the kernel from an ELF.
-	// ExecSnoopObjects contains all objects (BPF programs and maps) after they have been loaded into the kernel:
+	// bpfObjects contains all objects (BPF programs and maps) after they have been loaded into the kernel:
 	// TracepointSyscallsSysEnterExecve and TracepointSyscallsSysExitExecve BPF programs,
 	// Events and Execs BPF maps.
-	objs := ExecSnoopObjects{}
-	if err := LoadExecSnoopObjects(&objs, nil); err != nil {
+	objs := bpfObjects{}
+	if err := loadBpfObjects(&objs, nil); err != nil {
 		log.Printf("failed to load BPF programs and maps: %v", err)
 		return
 	}
 	defer objs.Close()
 
-	tpEnter, err := link.Tracepoint("syscalls", "sys_enter_execve", objs.ExecSnoopPrograms.TracepointSyscallsSysEnterExecve, nil)
+	tpEnter, err := link.Tracepoint("syscalls", "sys_enter_execve", objs.bpfPrograms.TracepointSyscallsSysEnterExecve, nil)
 	if err != nil {
 		log.Printf("failed to attach the BPF program to sys_enter_execve tracepoint: %v", err)
 		return
 	}
 	defer tpEnter.Close()
 
-	tpExit, err := link.Tracepoint("syscalls", "sys_exit_execve", objs.ExecSnoopPrograms.TracepointSyscallsSysExitExecve, nil)
+	tpExit, err := link.Tracepoint("syscalls", "sys_exit_execve", objs.bpfPrograms.TracepointSyscallsSysExitExecve, nil)
 	if err != nil {
 		log.Printf("failed to attach the BPF program to sys_exit_execve tracepoint: %v", err)
 		return
@@ -96,7 +96,7 @@ func main() {
 
 	// Open a perf event reader from user space on the PERF_EVENT_ARRAY map
 	// defined in the BPF C program.
-	rd, err := perf.NewReader(objs.ExecSnoopMaps.Events, os.Getpagesize())
+	rd, err := perf.NewReader(objs.bpfMaps.Events, os.Getpagesize())
 	if err != nil {
 		log.Printf("failed to create perf event reader: %v", err)
 		return

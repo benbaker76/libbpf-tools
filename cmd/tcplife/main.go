@@ -45,7 +45,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cflags $BPF_CFLAGS -cc clang-15 TCPLife ./bpf/tcplife.bpf.c -- -I../../headers
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cflags $BPF_CFLAGS -cc clang-15 bpf tcplife.c -- -I../../headers
 
 func main() {
 	// By default an exit code is set to indicate a failure since
@@ -68,14 +68,14 @@ func main() {
 		return
 	}
 
-	objs := TCPLifeObjects{}
-	if err := LoadTCPLifeObjects(&objs, nil); err != nil {
+	objs := bpfObjects{}
+	if err := loadBpfObjects(&objs, nil); err != nil {
 		log.Printf("failed to load BPF programs and maps: %v", err)
 		return
 	}
 	defer objs.Close()
 
-	tp, err := link.Tracepoint("sock", "inet_sock_set_state", objs.TCPLifePrograms.InetSockSetState, nil)
+	tp, err := link.Tracepoint("sock", "inet_sock_set_state", objs.bpfPrograms.InetSockSetState, nil)
 	if err != nil {
 		log.Printf("failed to attach the BPF program to inet_sock_set_state tracepoint: %v", err)
 		return
@@ -84,7 +84,7 @@ func main() {
 
 	// Open a perf event reader from user space on the PERF_EVENT_ARRAY map
 	// defined in the BPF C program.
-	rd, err := perf.NewReader(objs.TCPLifeMaps.Events, os.Getpagesize())
+	rd, err := perf.NewReader(objs.bpfMaps.Events, os.Getpagesize())
 	if err != nil {
 		log.Printf("failed to create perf event reader: %v", err)
 		return

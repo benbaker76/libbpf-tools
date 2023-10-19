@@ -37,7 +37,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cflags $BPF_CFLAGS -cc clang-15 TCPConnect ./bpf/tcpconnect.bpf.c -- -I../../headers
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cflags $BPF_CFLAGS -cc clang-15 bpf tcpconnect.c -- -I../../headers
 
 func main() {
 	// By default an exit code is set to indicate a failure since
@@ -64,7 +64,7 @@ func main() {
 	}
 
 	// Replace constants in the BPF C program to filter connections by PID or UID.
-	spec, err := LoadTCPConnect()
+	spec, err := loadBpf()
 	if err != nil {
 		log.Printf("failed to load collection spec: %v", err)
 		return
@@ -82,38 +82,38 @@ func main() {
 	}
 
 	// Load the BPF program into the kernel from an ELF.
-	// TCPConnectObjects contains all objects (BPF programs and maps) after they have been loaded into the kernel:
+	// bpfObjects contains all objects (BPF programs and maps) after they have been loaded into the kernel:
 	// - TcpV4Connect, TcpV4ConnectRet, TcpV6Connect, TcpV6ConnectRet BPF programs,
 	// - Events, Ipv4Count, Ipv6Count, Sockets BPF maps.
-	objs := TCPConnectObjects{}
+	objs := bpfObjects{}
 	if err := spec.LoadAndAssign(&objs, nil); err != nil {
 		log.Printf("failed to load BPF programs and maps: %v", err)
 		return
 	}
 	defer objs.Close()
 
-	tcpv4kp, err := link.Kprobe("tcp_v4_connect", objs.TCPConnectPrograms.TcpV4Connect, nil)
+	tcpv4kp, err := link.Kprobe("tcp_v4_connect", objs.bpfPrograms.TcpV4Connect, nil)
 	if err != nil {
 		log.Printf("failed to attach the BPF program to tcp_v4_connect kprobe: %s", err)
 		return
 	}
 	defer tcpv4kp.Close()
 
-	tcpv4krp, err := link.Kretprobe("tcp_v4_connect", objs.TCPConnectPrograms.TcpV4ConnectRet, nil)
+	tcpv4krp, err := link.Kretprobe("tcp_v4_connect", objs.bpfPrograms.TcpV4ConnectRet, nil)
 	if err != nil {
 		log.Printf("failed to attach the BPF program to tcp_v4_connect kretprobe: %s", err)
 		return
 	}
 	defer tcpv4krp.Close()
 
-	tcpv6kp, err := link.Kprobe("tcp_v6_connect", objs.TCPConnectPrograms.TcpV6Connect, nil)
+	tcpv6kp, err := link.Kprobe("tcp_v6_connect", objs.bpfPrograms.TcpV6Connect, nil)
 	if err != nil {
 		log.Printf("failed to attach the BPF program to tcp_v6_connect kprobe: %s", err)
 		return
 	}
 	defer tcpv6kp.Close()
 
-	tcpv6krp, err := link.Kretprobe("tcp_v6_connect", objs.TCPConnectPrograms.TcpV6ConnectRet, nil)
+	tcpv6krp, err := link.Kretprobe("tcp_v6_connect", objs.bpfPrograms.TcpV6ConnectRet, nil)
 	if err != nil {
 		log.Printf("failed to attach the BPF program to tcp_v6_connect kretprobe: %s", err)
 		return
@@ -122,7 +122,7 @@ func main() {
 
 	// Open a perf event reader from userspace on the PERF_EVENT_ARRAY map
 	// defined in the BPF C program.
-	rd, err := perf.NewReader(objs.TCPConnectMaps.Events, os.Getpagesize())
+	rd, err := perf.NewReader(objs.bpfMaps.Events, os.Getpagesize())
 	if err != nil {
 		log.Printf("failed to create perf event reader: %v", err)
 		return

@@ -43,7 +43,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cflags $BPF_CFLAGS -cc clang-15 TCPConnLat ./bpf/tcpconnlat.bpf.c -- -I../../headers
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cflags $BPF_CFLAGS -cc clang-15 bpf tcpconnlat.c -- -I../../headers
 
 func main() {
 	// By default an exit code is set to indicate a failure since
@@ -66,8 +66,8 @@ func main() {
 		return
 	}
 
-	objs := TCPConnLatObjects{}
-	if err := LoadTCPConnLatObjects(&objs, nil); err != nil {
+	objs := bpfObjects{}
+	if err := loadBpfObjects(&objs, nil); err != nil {
 		log.Printf("failed to load BPF programs and maps: %v", err)
 		return
 	}
@@ -77,7 +77,7 @@ func main() {
 	// Fentry is similar to kprobe, but has improved performance and usability,
 	// see https://github.com/libbpf/libbpf-bootstrap/blob/master/README.md#fentry.
 	tcpv4fe, err := link.AttachTracing(link.TracingOptions{
-		Program: objs.TCPConnLatPrograms.FentryTcpV4Connect,
+		Program: objs.bpfPrograms.FentryTcpV4Connect,
 	})
 	if err != nil {
 		log.Printf("failed to attach the BPF program to tcp_v4_connect fentry: %s", err)
@@ -85,7 +85,7 @@ func main() {
 	}
 	defer tcpv4fe.Close()
 
-	tcpv6kp, err := link.Kprobe("tcp_v6_connect", objs.TCPConnLatPrograms.TcpV6Connect, nil)
+	tcpv6kp, err := link.Kprobe("tcp_v6_connect", objs.bpfPrograms.TcpV6Connect, nil)
 	if err != nil {
 		log.Printf("failed to attach the BPF program to tcp_v6_connect kprobe: %s", err)
 		return
@@ -93,7 +93,7 @@ func main() {
 	defer tcpv6kp.Close()
 
 	tcprcvfe, err := link.AttachTracing(link.TracingOptions{
-		Program: objs.TCPConnLatPrograms.FentryTcpRcvStateProcess,
+		Program: objs.bpfPrograms.FentryTcpRcvStateProcess,
 	})
 	if err != nil {
 		log.Printf("failed to attach the BPF program to tcp_rcv_state_process fentry: %s", err)
@@ -103,7 +103,7 @@ func main() {
 
 	// Open a perf event reader from user space on the PERF_EVENT_ARRAY map
 	// defined in the BPF C program.
-	rd, err := perf.NewReader(objs.TCPConnLatMaps.Events, os.Getpagesize())
+	rd, err := perf.NewReader(objs.bpfMaps.Events, os.Getpagesize())
 	if err != nil {
 		log.Printf("failed to create perf event reader: %v", err)
 		return

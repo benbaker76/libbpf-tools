@@ -1,21 +1,26 @@
+//go:build ignore
+
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2022 Hengqi Chen */
-#include <vmlinux.h>
-#include <bpf/bpf_core_read.h>
-#include <bpf/bpf_helpers.h>
-#include <bpf/bpf_tracing.h>
+
+#include "vmlinux.h"
+
+#include "bpf_core_read.h"
+#include "bpf_helpers.h"
+#include "bpf_tracing.h"
+
 #include "tcplife.h"
 
-#define MAX_ENTRIES	10240
-#define AF_INET		2
-#define AF_INET6	10
+#define MAX_ENTRIES 10240
+#define AF_INET 2
+#define AF_INET6 10
 
-const volatile bool filter_sport = false;
-const volatile bool filter_dport = false;
+const volatile bool filter_sport              = false;
+const volatile bool filter_dport              = false;
 const volatile __u16 target_sports[MAX_PORTS] = {};
 const volatile __u16 target_dports[MAX_PORTS] = {};
-const volatile pid_t target_pid = 0;
-const volatile __u16 target_family = 0;
+const volatile pid_t target_pid               = 0;
+const volatile __u16 target_family            = 0;
 
 struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
@@ -38,8 +43,7 @@ struct {
 } events SEC(".maps");
 
 SEC("tracepoint/sock/inet_sock_set_state")
-int inet_sock_set_state(struct trace_event_raw_inet_sock_set_state *args)
-{
+int inet_sock_set_state(struct trace_event_raw_inet_sock_set_state *args) {
 	__u64 ts, *start, delta_us, rx_b, tx_b;
 	struct ident ident = {}, *identp;
 	__u16 sport, dport, family;
@@ -110,26 +114,26 @@ int inet_sock_set_state(struct trace_event_raw_inet_sock_set_state *args)
 		bpf_map_delete_elem(&idents, &sk);
 		return 0;
 	}
-	ts = bpf_ktime_get_ns();
+	ts       = bpf_ktime_get_ns();
 	delta_us = (ts - *start) / 1000;
 
 	identp = bpf_map_lookup_elem(&idents, &sk);
-	pid = identp ? identp->pid : bpf_get_current_pid_tgid() >> 32;
+	pid    = identp ? identp->pid : bpf_get_current_pid_tgid() >> 32;
 	if (target_pid && pid != target_pid)
 		goto cleanup;
 
-	tp = (struct tcp_sock *)sk;
+	tp   = (struct tcp_sock *)sk;
 	rx_b = BPF_CORE_READ(tp, bytes_received);
 	tx_b = BPF_CORE_READ(tp, bytes_acked);
 
-	event.ts_us = ts / 1000;
+	event.ts_us   = ts / 1000;
 	event.span_us = delta_us;
-	event.rx_b = rx_b;
-	event.tx_b = tx_b;
-	event.pid = pid;
-	event.sport = sport;
-	event.dport = dport;
-	event.family = family;
+	event.rx_b    = rx_b;
+	event.tx_b    = tx_b;
+	event.pid     = pid;
+	event.sport   = sport;
+	event.dport   = dport;
+	event.family  = family;
 	if (!identp)
 		bpf_get_current_comm(event.comm, sizeof(event.comm));
 	else
@@ -137,7 +141,7 @@ int inet_sock_set_state(struct trace_event_raw_inet_sock_set_state *args)
 	if (family == AF_INET) {
 		bpf_probe_read_kernel(&event.saddr, sizeof(args->saddr), BPF_CORE_READ(args, saddr));
 		bpf_probe_read_kernel(&event.daddr, sizeof(args->daddr), BPF_CORE_READ(args, daddr));
-	} else {	/*  AF_INET6 */
+	} else { /*  AF_INET6 */
 		bpf_probe_read_kernel(&event.saddr, sizeof(args->saddr_v6), BPF_CORE_READ(args, saddr_v6));
 		bpf_probe_read_kernel(&event.daddr, sizeof(args->daddr_v6), BPF_CORE_READ(args, daddr_v6));
 	}

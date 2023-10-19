@@ -1,13 +1,18 @@
+//go:build ignore
+
 // SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
-#include <vmlinux.h>
-#include <bpf/bpf_helpers.h>
-#include <bpf/bpf_core_read.h>
+
+#include "vmlinux.h"
+
+#include "bpf_helpers.h"
+#include "bpf_core_read.h"
+
 #include "execsnoop.h"
 
-const volatile bool filter_cg = false;
+const volatile bool filter_cg     = false;
 const volatile bool ignore_failed = true;
-const volatile uid_t targ_uid = INVALID_UID;
-const volatile int max_args = DEFAULT_MAXARGS;
+const volatile uid_t targ_uid     = INVALID_UID;
+const volatile int max_args       = DEFAULT_MAXARGS;
 
 static const struct event empty_event = {};
 
@@ -36,8 +41,7 @@ static __always_inline bool valid_uid(uid_t uid) {
 }
 
 SEC("tracepoint/syscalls/sys_enter_execve")
-int tracepoint__syscalls__sys_enter_execve(struct trace_event_raw_sys_enter* ctx)
-{
+int tracepoint__syscalls__sys_enter_execve(struct trace_event_raw_sys_enter *ctx) {
 	u64 id;
 	pid_t pid, tgid;
 	unsigned int ret;
@@ -55,8 +59,8 @@ int tracepoint__syscalls__sys_enter_execve(struct trace_event_raw_sys_enter* ctx
 	if (valid_uid(targ_uid) && targ_uid != uid)
 		return 0;
 
-	id = bpf_get_current_pid_tgid();
-	pid = (pid_t)id;
+	id   = bpf_get_current_pid_tgid();
+	pid  = (pid_t)id;
 	tgid = id >> 32;
 	if (bpf_map_update_elem(&execs, &pid, &empty_event, BPF_NOEXIST))
 		return 0;
@@ -65,14 +69,14 @@ int tracepoint__syscalls__sys_enter_execve(struct trace_event_raw_sys_enter* ctx
 	if (!event)
 		return 0;
 
-	event->pid = tgid;
-	event->uid = uid;
-	task = (struct task_struct*)bpf_get_current_task();
-	event->ppid = (pid_t)BPF_CORE_READ(task, real_parent, tgid);
+	event->pid        = tgid;
+	event->uid        = uid;
+	task              = (struct task_struct *)bpf_get_current_task();
+	event->ppid       = (pid_t)BPF_CORE_READ(task, real_parent, tgid);
 	event->args_count = 0;
-	event->args_size = 0;
+	event->args_size  = 0;
 
-	ret = bpf_probe_read_user_str(event->args, ARGSIZE, (const char*)ctx->args[0]);
+	ret = bpf_probe_read_user_str(event->args, ARGSIZE, (const char *)ctx->args[0]);
 	if (ret <= ARGSIZE) {
 		event->args_size += ret;
 	} else {
@@ -82,7 +86,7 @@ int tracepoint__syscalls__sys_enter_execve(struct trace_event_raw_sys_enter* ctx
 	}
 
 	event->args_count++;
-	#pragma unroll
+#pragma unroll
 	for (i = 1; i < TOTAL_MAX_ARGS && i < max_args; i++) {
 		bpf_probe_read_user(&argp, sizeof(argp), &args[i]);
 		if (!argp)
@@ -109,8 +113,7 @@ int tracepoint__syscalls__sys_enter_execve(struct trace_event_raw_sys_enter* ctx
 }
 
 SEC("tracepoint/syscalls/sys_exit_execve")
-int tracepoint__syscalls__sys_exit_execve(struct trace_event_raw_sys_exit* ctx)
-{
+int tracepoint__syscalls__sys_exit_execve(struct trace_event_raw_sys_exit *ctx) {
 	u64 id;
 	pid_t pid;
 	int ret;
@@ -123,8 +126,8 @@ int tracepoint__syscalls__sys_exit_execve(struct trace_event_raw_sys_exit* ctx)
 
 	if (valid_uid(targ_uid) && targ_uid != uid)
 		return 0;
-	id = bpf_get_current_pid_tgid();
-	pid = (pid_t)id;
+	id    = bpf_get_current_pid_tgid();
+	pid   = (pid_t)id;
 	event = bpf_map_lookup_elem(&execs, &pid);
 	if (!event)
 		return 0;
