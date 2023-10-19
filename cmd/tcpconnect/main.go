@@ -37,7 +37,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cflags $BPF_CFLAGS -cc clang-11 TCPConnect ./bpf/tcpconnect.bpf.c -- -I../../headers
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cflags $BPF_CFLAGS -cc clang-15 TCPConnect ./bpf/tcpconnect.bpf.c -- -I../../headers
 
 func main() {
 	// By default an exit code is set to indicate a failure since
