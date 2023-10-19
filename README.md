@@ -47,6 +47,6 @@ $ cp ./ebpf/btf/testdata/bpf_core_read.h ./headers/bpf
 `vmlinux.h` was generated as follows.
 
 ```sh
-$ sudo apt-get install linux-tools-common linux-tools-6.2.0-35-generic
+$ sudo apt-get install linux-tools-common linux-tools-generic
 $ bpftool btf dump file /sys/kernel/btf/vmlinux format c > ./headers/vmlinux.h
 ```
