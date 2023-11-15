@@ -3,6 +3,7 @@ tools:
 	BPF_CFLAGS='-D__TARGET_ARCH_x86' go generate ./cmd/kprobe/
 	BPF_CFLAGS='-D__TARGET_ARCH_x86' go generate ./cmd/tcpconnect/
 	BPF_CFLAGS='-D__TARGET_ARCH_x86' go generate ./cmd/tcpconnlat/
+	BPF_CFLAGS='-D__TARGET_ARCH_x86' go generate ./cmd/tcpinfo/
 	BPF_CFLAGS='-D__TARGET_ARCH_x86' go generate ./cmd/tcplife/
 
 build:
